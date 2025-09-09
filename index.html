@@ -8,7 +8,10 @@
         .folder-select { margin-bottom: 15px; }
         button { padding: 8px 12px; }
         .path-display { margin-left: 10px; font-style: italic; color: #555; }
-        
+        #progress-container { margin-top: 15px; }
+        .job-item { margin-bottom: 8px; font-family: monospace; }
+        .job-item progress { margin-left: 10px; width: 300px; }
+        .job-status { margin-left: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -31,10 +34,7 @@
 
     <button id="start-process">开始拼接</button>
 
-    <h3>进度:</h3>
-    <progress id="progress-bar" max="100" value="0" style="width: 100%;"></progress>
-
-    
+    <div id="progress-container"></div>
 
     <script src="./renderer.js"></script>
 </body>

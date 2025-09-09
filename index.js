@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { runConcatenation } = require('./concatenator');
+const { generateJobList, runJobs } = require('./concatenator');
 
 let mainWindow;
 let ffmpegProcess = null; // Variable to hold the current FFmpeg process
@@ -53,11 +53,21 @@ ipcMain.handle('dialog:openDirectory', async () => {
   return filePaths[0];
 });
 
-ipcMain.on('start-process', (event, folders) => {
+ipcMain.handle('jobs:generate', (event, folders) => {
+  try {
+    return generateJobList(folders);
+  } catch (error) {
+    // Handle case where folders might be empty or unreadable
+    console.error("Error generating job list:", error);
+    return []; // Return empty list on error
+  }
+});
+
+ipcMain.on('jobs:run', (event, { folders, jobs }) => {
   const setProcess = (proc) => { ffmpegProcess = proc; };
-  const progressUpdater = (percentage) => {
-    event.sender.send('update-progress', percentage);
+  const progressUpdater = (jobId, percentage, status) => {
+    event.sender.send('update-specific-progress', { jobId, percentage, status });
   };
 
-  runConcatenation(folders, setProcess, progressUpdater);
+  runJobs(folders, jobs, setProcess, progressUpdater);
 });
