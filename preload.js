@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('dialog:openDirectory'),
-  onUpdateLog: (callback) => ipcRenderer.on('update-log', callback),
+  
+  onUpdateProgress: (callback) => ipcRenderer.on('update-progress', callback),
   startProcess: (folders) => ipcRenderer.send('start-process', folders)
 });

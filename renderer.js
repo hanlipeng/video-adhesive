@@ -6,7 +6,7 @@ const startBtn = document.getElementById('start-process');
 const prefixPath = document.getElementById('prefix-path');
 const suffixPath = document.getElementById('suffix-path');
 const outputPath = document.getElementById('output-path');
-const log = document.getElementById('log');
+const progressBar = document.getElementById('progress-bar');
 
 let folders = { prefix: '', suffix: '', output: '' };
 
@@ -24,14 +24,13 @@ outputBtn.addEventListener('click', () => selectAndSetPath('output', outputPath)
 
 startBtn.addEventListener('click', () => {
     if (folders.prefix && folders.suffix && folders.output) {
-        log.textContent = '开始处理...\n';
+        progressBar.value = 0; // Reset progress bar
         window.electronAPI.startProcess(folders);
     } else {
-        log.textContent = '请先选择所有三个文件夹。\n';
+        alert('请先选择所有三个文件夹。');
     }
 });
 
-window.electronAPI.onUpdateLog((event, message) => {
-    log.textContent += message + '\n';
-    log.scrollTop = log.scrollHeight; // Auto-scroll
+window.electronAPI.onUpdateProgress((event, percentage) => {
+    progressBar.value = percentage;
 });

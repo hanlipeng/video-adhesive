@@ -8,15 +8,7 @@
         .folder-select { margin-bottom: 15px; }
         button { padding: 8px 12px; }
         .path-display { margin-left: 10px; font-style: italic; color: #555; }
-        #log {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            height: 300px;
-            overflow-y: scroll;
-            background-color: #f9f9f9;
-            white-space: pre-wrap;
-        }
+        
     </style>
 </head>
 <body>
@@ -39,8 +31,10 @@
 
     <button id="start-process">开始拼接</button>
 
-    <h3>日志:</h3>
-    <div id="log"></div>
+    <h3>进度:</h3>
+    <progress id="progress-bar" max="100" value="0" style="width: 100%;"></progress>
+
+    
 
     <script src="./renderer.js"></script>
 </body>

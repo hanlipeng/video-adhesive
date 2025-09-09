@@ -54,12 +54,10 @@ ipcMain.handle('dialog:openDirectory', async () => {
 });
 
 ipcMain.on('start-process', (event, folders) => {
-  const log = (message) => event.sender.send('update-log', message);
-  
-  // Function to update the tracked process
-  const setProcess = (proc) => {
-    ffmpegProcess = proc;
+  const setProcess = (proc) => { ffmpegProcess = proc; };
+  const progressUpdater = (percentage) => {
+    event.sender.send('update-progress', percentage);
   };
 
-  runConcatenation(folders, log, setProcess);
+  runConcatenation(folders, setProcess, progressUpdater);
 });
