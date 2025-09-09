@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const ffmpegPath = require('ffmpeg-static');
+const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
 
 async function runConcatenation(folders, log, setProcess) {
   // Create a unique, timestamped log file in the output directory

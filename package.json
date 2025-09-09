@@ -1,10 +1,11 @@
 {
-  "name": "video_concat",
+  "name": "video-concat",
   "version": "1.0.0",
-  "description": "",
+  "description": "A simple app to concatenate videos.",
   "main": "index.js",
   "scripts": {
     "start": "electron .",
+    "build": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,9 +13,18 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^38.0.0"
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
   },
   "dependencies": {
     "ffmpeg-static": "^5.2.0"
+  },
+  "build": {
+    "appId": "com.electron.videoconcat",
+    "productName": "Video Concatenator",
+    "mac": {
+      "category": "public.app-category.video",
+      "target": "dmg"
+    }
   }
 }
