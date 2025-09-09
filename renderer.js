@@ -2,6 +2,7 @@ const prefixBtn = document.getElementById('select-prefix');
 const suffixBtn = document.getElementById('select-suffix');
 const outputBtn = document.getElementById('select-output');
 const startBtn = document.getElementById('start-process');
+const cancelBtn = document.getElementById('cancel-process');
 
 const prefixPath = document.getElementById('prefix-path');
 const suffixPath = document.getElementById('suffix-path');
@@ -9,6 +10,11 @@ const outputPath = document.getElementById('output-path');
 const progressContainer = document.getElementById('progress-container');
 
 let folders = { prefix: '', suffix: '', output: '' };
+
+function setButtonsState(isProcessing) {
+    startBtn.disabled = isProcessing;
+    cancelBtn.disabled = !isProcessing;
+}
 
 async function selectAndSetPath(type, element) {
     const selectedPath = await window.electronAPI.selectFolder();
@@ -18,30 +24,40 @@ async function selectAndSetPath(type, element) {
     }
 }
 
+// Initial Setup
 prefixBtn.addEventListener('click', () => selectAndSetPath('prefix', prefixPath));
 suffixBtn.addEventListener('click', () => selectAndSetPath('suffix', suffixPath));
 outputBtn.addEventListener('click', () => selectAndSetPath('output', outputPath));
+setButtonsState(false);
 
-startBtn.addEventListener('click', async () => {
+// --- Task Flow ---
+
+startBtn.addEventListener('click', () => {
     if (!folders.prefix || !folders.suffix || !folders.output) {
         M.toast({html: '请先选择所有三个文件夹！'});
         return;
     }
-
-    startBtn.disabled = true;
+    setButtonsState(true);
     progressContainer.innerHTML = '<div class="center-align">扫描文件中...</div>';
+    window.electronAPI.startTask(folders);
+});
 
-    const jobs = await window.electronAPI.generateJobs(folders);
+cancelBtn.addEventListener('click', () => {
+    window.electronAPI.cancelTask();
+});
 
+// --- Event Listeners from Main Process ---
+
+window.electronAPI.onJobsGenerated((event, jobs) => {
     if (jobs.length === 0) {
         progressContainer.innerHTML = '<div class="center-align">未找到可处理的视频文件。</div>';
-        startBtn.disabled = false;
+        setButtonsState(false);
         return;
     }
 
     progressContainer.innerHTML = '';
     jobs.forEach(job => {
-        const jobElement = document.createElement('a'); // Materialize collections are anchor tags
+        const jobElement = document.createElement('a');
         jobElement.className = 'collection-item';
         jobElement.id = job.id;
         jobElement.innerHTML = `
@@ -53,11 +69,9 @@ startBtn.addEventListener('click', async () => {
         `;
         progressContainer.appendChild(jobElement);
     });
-
-    window.electronAPI.runJobs(folders, jobs);
 });
 
-window.electronAPI.onUpdateSpecificProgress((event, { jobId, percentage, status }) => {
+window.electronAPI.onProgress((event, { jobId, percentage, status }) => {
     const jobElement = document.getElementById(jobId);
     if (jobElement) {
         const progressBar = jobElement.querySelector('.determinate');
@@ -66,21 +80,18 @@ window.electronAPI.onUpdateSpecificProgress((event, { jobId, percentage, status 
         progressBar.style.width = percentage + '%';
         statusElement.textContent = status;
 
-        // Add color coding for status
-        if (status === 'Done') {
+        statusElement.classList.remove('green-text', 'red-text');
+        if (status === 'Done' || status === 'Skipped') {
             statusElement.classList.add('green-text');
-        } else if (status === 'Error') {
+        } else if (status === 'Error' || status === 'Cancelled') {
             statusElement.classList.add('red-text');
-        } else if (status === 'Skipped') {
-            statusElement.classList.add('orange-text');
         }
+    }
+});
 
-        // Check if all jobs are complete
-        const allProgressBars = progressContainer.querySelectorAll('.determinate');
-        const allDone = Array.from(allProgressBars).every(p => p.style.width === '100%');
-        if (allDone) {
-            startBtn.disabled = false;
-            M.toast({html: '所有任务已完成！'});
-        }
+window.electronAPI.onStatus((event, status) => {
+    if (status === 'done' || status === 'cancelled') {
+        setButtonsState(false);
+        M.toast({html: `任务已${status === 'done' ? '完成' : '取消'}！`});
     }
 });
