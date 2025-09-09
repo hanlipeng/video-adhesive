@@ -25,11 +25,12 @@
     "productName": "Video Concatenator",
     "mac": {
       "category": "public.app-category.video",
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "build/icon.png"
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.png"
     }
   }
 }
