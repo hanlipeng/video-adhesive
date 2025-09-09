@@ -17,17 +17,23 @@ async function runConcatenation(folders, log, setProcess) {
 
     log(`找到 ${prefixFiles.length} 个前贴视频和 ${suffixFiles.length} 个后贴视频。`);
 
+    let prefixCounter = 1;
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
     for (const prefixFile of prefixFiles) {
+      let suffixCounter = 0;
       for (const suffixFile of suffixFiles) {
         const prefixFilePath = path.join(folders.prefix, prefixFile);
         const suffixFilePath = path.join(folders.suffix, suffixFile);
         
-        const outputFileName = `${path.parse(prefixFile).name}-${path.parse(suffixFile).name}.mp4`;
+        const letter = letters[suffixCounter] || `Z${suffixCounter - 25}`;
+        const outputFileName = `${prefixCounter}-${letter}-${path.parse(prefixFile).name}-${path.parse(suffixFile).name}.mp4`;
         const outputFilePath = path.join(folders.output, outputFileName);
 
         if (fs.existsSync(outputFilePath)) {
           log(`
 文件已存在，跳过: ${outputFileName}`);
+          suffixCounter++;
           continue;
         }
 
@@ -46,16 +52,15 @@ async function runConcatenation(folders, log, setProcess) {
           outputFilePath
         ]);
 
-        setProcess(ffmpeg); // Track the new process
+        setProcess(ffmpeg);
 
-        // Write FFmpeg's stderr to the log file
         ffmpeg.stderr.on('data', (data) => {
           logStream.write(data);
         });
 
         await new Promise((resolve, reject) => {
           ffmpeg.on('close', (code) => {
-            setProcess(null); // Clear the tracked process
+            setProcess(null);
             if (code === 0) {
               log(`成功! 已保存到: ${outputFilePath}`);
               resolve();
@@ -65,18 +70,19 @@ async function runConcatenation(folders, log, setProcess) {
             }
           });
           ffmpeg.on('error', (err) => {
-            setProcess(null); // Clear the tracked process
+            setProcess(null);
             log(`错误: 无法启动 FFmpeg 进程: ${err.message}`);
             reject(err);
           });
         });
+        suffixCounter++;
       }
+      prefixCounter++;
     }
-    log('--- 所有任务完成 ---');
+    log('\n--- 所有任务完成 ---');
   } catch (error) {
     log(`发生严重错误: ${error.message}`);
   } finally {
-    // Ensure the log stream is always closed
     logStream.end();
   }
 }
