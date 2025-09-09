@@ -24,54 +24,63 @@ outputBtn.addEventListener('click', () => selectAndSetPath('output', outputPath)
 
 startBtn.addEventListener('click', async () => {
     if (!folders.prefix || !folders.suffix || !folders.output) {
-        alert('请先选择所有三个文件夹。');
+        M.toast({html: '请先选择所有三个文件夹！'});
         return;
     }
 
-    // Disable button to prevent multiple starts
     startBtn.disabled = true;
-    progressContainer.innerHTML = '扫描文件中...';
+    progressContainer.innerHTML = '<div class="center-align">扫描文件中...</div>';
 
     const jobs = await window.electronAPI.generateJobs(folders);
 
     if (jobs.length === 0) {
-        progressContainer.innerHTML = '未找到可处理的视频文件。';
+        progressContainer.innerHTML = '<div class="center-align">未找到可处理的视频文件。</div>';
         startBtn.disabled = false;
         return;
     }
 
-    // Clear container and build the UI for each job
     progressContainer.innerHTML = '';
     jobs.forEach(job => {
-        const jobElement = document.createElement('div');
-        jobElement.className = 'job-item';
+        const jobElement = document.createElement('a'); // Materialize collections are anchor tags
+        jobElement.className = 'collection-item';
         jobElement.id = job.id;
         jobElement.innerHTML = `
-            <span>${job.outputFileName}</span>
-            <progress max="100" value="0"></progress>
-            <span class="job-status">等待中...</span>
+            <div class="job-name">${job.outputFileName}</div>
+            <div class="progress">
+                <div class="determinate" style="width: 0%"></div>
+            </div>
+            <div class="job-status">等待中...</div>
         `;
         progressContainer.appendChild(jobElement);
     });
 
-    // Start the actual processing
     window.electronAPI.runJobs(folders, jobs);
 });
 
 window.electronAPI.onUpdateSpecificProgress((event, { jobId, percentage, status }) => {
     const jobElement = document.getElementById(jobId);
     if (jobElement) {
-        jobElement.querySelector('progress').value = percentage;
-        jobElement.querySelector('.job-status').textContent = status;
+        const progressBar = jobElement.querySelector('.determinate');
+        const statusElement = jobElement.querySelector('.job-status');
 
-        // Re-enable start button when the last job is done or errored
-        const allProgressBars = progressContainer.querySelectorAll('progress');
-        const lastProgressBar = allProgressBars[allProgressBars.length - 1];
-        if (jobElement.contains(lastProgressBar) && percentage === 100) {
-            const allDone = Array.from(allProgressBars).every(p => p.value === 100);
-            if (allDone) {
-                startBtn.disabled = false;
-            }
+        progressBar.style.width = percentage + '%';
+        statusElement.textContent = status;
+
+        // Add color coding for status
+        if (status === 'Done') {
+            statusElement.classList.add('green-text');
+        } else if (status === 'Error') {
+            statusElement.classList.add('red-text');
+        } else if (status === 'Skipped') {
+            statusElement.classList.add('orange-text');
+        }
+
+        // Check if all jobs are complete
+        const allProgressBars = progressContainer.querySelectorAll('.determinate');
+        const allDone = Array.from(allProgressBars).every(p => p.style.width === '100%');
+        if (allDone) {
+            startBtn.disabled = false;
+            M.toast({html: '所有任务已完成！'});
         }
     }
 });
