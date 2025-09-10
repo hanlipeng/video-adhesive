@@ -4,6 +4,8 @@ const { spawn, execFile } = require('child_process');
 const EventEmitter = require('events');
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
 const ffprobePath = require('ffprobe-static').path.replace('app.asar', 'app.asar.unpacked');
+const si = require('systeminformation');
+const os = require('os');
 
 class Concatenator extends EventEmitter {
     constructor(folders) {
@@ -12,11 +14,13 @@ class Concatenator extends EventEmitter {
         this._jobs = [];
         this._isCancelled = false;
         this._ffmpegProcess = null;
+        this._gpuAccelerationParams = [];
     }
 
     async start() {
         this.emit('status', 'generating');
         try {
+            this._gpuAccelerationParams = await this._getGpuAccelerationParams();
             this._jobs = this._generateJobs();
             this.emit('jobs-generated', this._jobs);
             await this._runJobs();
@@ -57,12 +61,45 @@ class Concatenator extends EventEmitter {
         return jobs;
     }
 
+    async _getGpuAccelerationParams() {
+        const platform = os.platform();
+        const graphics = await si.graphics();
+        const gpus = graphics.controllers;
+        let params = [];
+
+        if (gpus.length > 0) {
+            const gpu = gpus[0];
+            const vendor = gpu.vendor.toLowerCase();
+            let encoder;
+
+            if (platform === 'win32') {
+                if (vendor.includes('nvidia')) {
+                    encoder = 'h264_nvenc';
+                } else if (vendor.includes('amd') || vendor.includes('advanced micro devices')) {
+                    encoder = 'h264_amf';
+                } else if (vendor.includes('intel')) {
+                    encoder = 'h264_qsv';
+                }
+            } else if (platform === 'darwin') {
+                if (vendor.includes('intel') || vendor.includes('apple')) {
+                    encoder = 'h264_videotoolbox';
+                }
+            }
+
+            if (encoder) {
+                params = ['-c:v', encoder, '-b:v', '10M'];
+            }
+        }
+        return params;
+    }
+
     async _runJobs() {
         const logFilePath = path.join(this._folders.output, `log_${new Date().toISOString().replace(/:/g, '-')}.log`);
         const logStream = fs.createWriteStream(logFilePath);
         const logToFile = (message) => logStream.write(`${new Date().toISOString()} - ${message}\n`);
 
         logToFile(`Starting batch process for ${this._jobs.length} jobs...`);
+        logToFile(`Using GPU acceleration parameters: ${this._gpuAccelerationParams.join(' ')}`);
 
         for (const job of this._jobs) {
             if (this._isCancelled) {
@@ -88,14 +125,17 @@ class Concatenator extends EventEmitter {
 
             const filterGraph = `[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,fps=60[v0_padded]; [1:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,fps=60[v1_padded]; [v0_padded][v1_padded]concat=n=2:v=1[v]; [0:a][1:a]concat=n=2:v=0:a=1[a]`;
 
-            this._ffmpegProcess = spawn(ffmpegPath, [
+            const ffmpegArgs = [
                 '-i', path.join(this._folders.prefix, prefixFile),
                 '-i', path.join(this._folders.suffix, suffixFile),
                 '-filter_complex', filterGraph,
                 '-map', '[v]',
                 '-map', '[a]',
+                ...this._gpuAccelerationParams,
                 outputFilePath
-            ]);
+            ];
+
+            this._ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
 
             this._ffmpegProcess.stderr.on('data', (data) => {
                 logStream.write(data);
